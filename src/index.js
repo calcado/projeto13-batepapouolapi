@@ -15,7 +15,7 @@ const messagesSchema= joi.object({
   to:joi.string().required(),
   text:joi.string().required(),
   type:joi.string().required(),
-  from:joi.string().required()
+  
 })
 
 const mongoClient = new MongoClient(process.env.MONGO_URI);
@@ -52,9 +52,9 @@ app.post("/participants", async (req, res) => {
   const { name } = req.body;
 
   const validationParticipant = participantsSchema.validate(req.body, {
-    aborteEarly: true,
+    abortEarly: false,
   });
-  console.log(collectionParticipants)
+  
   if (validationParticipant.error) {
     const error = validationParticipant.error.details.map((detail)=>detail.message);
     res.status(422).send(error);
@@ -68,31 +68,31 @@ app.post("/participants", async (req, res) => {
   }
 
   try {
-    await collectionParticipants?.insertOne({
+    await collectionParticipants.insertOne({
       name,
       lastStatus: Date.now()      
     });
-    await collectionMessages?.insertOne({
+    await collectionMessages.insertOne({
       from: name,
-      to: "Todos",
+      to: "todos",
       text: "entra na sala...",
       type: "status",
-      time: "agora",
+      time: dayjs(ms),
     });
+    res.sendStatus(201);
   } catch (err) {
     console.log(err);
     res.sendStatus(500);
   }
-
-  res.sendStatus(201);
+  
 });
 
 app.get("/participants", async (req, res) => {
   
   try {
-    const allParticipants = await collectionParticipants?.find().toArray();
+    const allParticipants = await collectionParticipants.find().toArray();
     console.log(allParticipants)
-    res.status(200).send(allParticipants);
+    res.status(201).send(allParticipants);
   } catch (err) {
     console.log(err);
     res.sendStatus(400);
@@ -101,29 +101,47 @@ app.get("/participants", async (req, res) => {
 
 app.post("/messages", async (req, res) => {
   const { to, text, type } = req.body;
-  // const { from } = req.headers.User;
+  const user = req.headers.user; 
+  const validationMessage = messagesSchema.validate(req.body, {abortEarly:false});
+  
+  if (validationMessage.error) {
+    const error = validationMessage.error.details.map((detail)=>detail.message);
+    res.status(422).send(error);
+    return
+  }
   try {
-   console.log("")
+   await collectionMessages.insertOne({
+    from:user,
+    to,
+    text,
+    type,
+    time: dayjs(ms)
+   })
+   res.sendStatus(201);
+
   } catch (err) {
     console.log(err);
+    res.sendStatus(400)
   }
-  res.sendStatus(201);
+  
 });
 
 app.get("/messages", async (req, res) => {
-  const { id } = req.params;
-  const limit = parseInt(req.query.limit);
-  const user = req.query.User;
-  const messages = await db.messages.find().toArray();
-  try {console.log("")
-  } catch (err) {
+  // const { id } = req.params;
+  // const limit = parseInt(req.query.limit);
+   // const messages = await db.messages.find().toArray();
+  try {
+    const allMessages = await collectionMessages.find().toArray()
+    res.send(allMessages)
+  } 
+  catch (err) {
     console.log(err);
   }
-  res.sendStatus(200);
+  
 });
 
 app.post("/status", async (req, res) => {
-  const user = req.headers;
+  
   try {console.log("")
   } catch (err) {
     console.log(err);
