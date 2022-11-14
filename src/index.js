@@ -77,7 +77,7 @@ app.post("/participants", async (req, res) => {
       to: "todos",
       text: "entra na sala...",
       type: "status",
-      time: dayjs(ms),
+      time: dayjs().format('HH:mm:ss')
     });
     res.sendStatus(201);
   } catch (err) {
@@ -91,7 +91,7 @@ app.get("/participants", async (req, res) => {
   
   try {
     const allParticipants = await collectionParticipants.find().toArray();
-    console.log(allParticipants)
+    
     res.status(201).send(allParticipants);
   } catch (err) {
     console.log(err);
@@ -115,7 +115,7 @@ app.post("/messages", async (req, res) => {
     to,
     text,
     type,
-    time: dayjs(ms)
+    time: dayjs().format('HH:mm:ss')
    })
    res.sendStatus(201);
 
@@ -127,12 +127,21 @@ app.post("/messages", async (req, res) => {
 });
 
 app.get("/messages", async (req, res) => {
-  // const { id } = req.params;
-  // const limit = parseInt(req.query.limit);
-   // const messages = await db.messages.find().toArray();
+  const user = req.headers.user
+  const limit = parseInt(req.query.limit);
+  
   try {
-    const allMessages = await collectionMessages.find().toArray()
-    res.send(allMessages)
+    const allMessages = (await collectionMessages.find().toArray()).filter(
+      (messageUser)=> {
+        if(messageUser.type === "message" || 
+        messageUser.type === "status" || 
+        messageUser.from === user || 
+        messageUser.to === user){
+          return messageUser
+        }
+      });
+    
+    res.send(allMessages.slice(-limit))
   } 
   catch (err) {
     console.log(err);
