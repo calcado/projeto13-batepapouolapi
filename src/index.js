@@ -29,24 +29,31 @@ const db = mongoClient.db("batePapoUolApi");
 const collectionParticipants = db.collection("participants");
 const collectionMessages = db.collection("messages");
 
-let ms = Date.now()
-
 const app = express();
 app.use(cors());
 app.use(json());
 
-const participants = {
-  name: 'xxx', 
-  lastStatus: Date.now()
-};
 
-const messages = {
-  from: "João",
-  to: "Todos",
-  text: "oi galera",
-  type: "message",
-  time: "20:04:37",
-};
+setInterval(async (interval) => {
+  
+  const allParticipants = await collectionParticipants.find().toArray();
+  allParticipants.forEach(async (participant)=>{
+    if (Date.now() - participant.lastStatus  > 10000) {
+      try{
+        await collectionParticipants.deleteOne({name:participant.name})
+        await collectionMessages.insertOne({
+          from: participant.name,
+          to: "Todos",
+          text: "sai da sala...",
+          type: "status",
+          time: dayjs().format('HH:mm:ss')
+
+        })
+      }catch(err){
+        console.log(err)
+      }
+      }
+  })}, 15000);
 
 app.post("/participants", async (req, res) => {
   const { name } = req.body;
@@ -74,7 +81,7 @@ app.post("/participants", async (req, res) => {
     });
     await collectionMessages.insertOne({
       from: name,
-      to: "todos",
+      to: "Todos",
       text: "entra na sala...",
       type: "status",
       time: dayjs().format('HH:mm:ss')
@@ -150,12 +157,27 @@ app.get("/messages", async (req, res) => {
 });
 
 app.post("/status", async (req, res) => {
+  const userHeader = req.headers.user;
+  const user = await collectionParticipants.findOne({name:userHeader });
+  console.log(user);
   
-  try {console.log("")
+  if (!user) {
+    res.sendStatus(404);
+    return;
+  }
+
+  try {
+    await collectionParticipants.updateOne(
+      {
+        name: userHeader,
+      },
+      { $set: { lastStatus: Date.now() } }
+    );
+    
+    res.sendStatus(200);
   } catch (err) {
     console.log(err);
   }
-  res.sendStatus(200);
 });
 
 app.listen(5000, () => console.log("Running in port: 5000"));
